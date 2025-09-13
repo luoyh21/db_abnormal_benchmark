@@ -92,6 +92,105 @@ def stopNode(index, only_datanode=False):
     finally:
         ssh.close()
 
+
+def start_monitoring_system():
+    """
+    启动节点监控系统：在index=0的机器上启动Prometheus和Grafana服务
+    """
+    print("\n【启动监控系统】开始启动Prometheus和Grafana...")
+    
+    try:
+        # 启动Prometheus服务
+        def start_prometheus():
+            try:
+                ssh_prometheus = paramiko.SSHClient()
+                ssh_prometheus.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh_prometheus.connect(server_ip[0], username="ubuntu", password="Dwf12345")
+                
+                print("启动Prometheus服务...")
+                stdin, stdout, stderr = ssh_prometheus.exec_command(
+                    "./prometheus-3.5.0.linux-amd64/prometheus --config.file=prometheus-3.5.0.linux-amd64/prometheus.yml --storage.tsdb.retention.time=180d",
+                    get_pty=True
+                )
+                
+                # 读取初始启动输出
+                print("Prometheus启动输出:")
+                time.sleep(3)  # 等待服务启动
+                
+                # 检查输出是否有错误
+                if stdout.channel.recv_ready():
+                    initial_output = stdout.read(1024).decode('utf-8')
+                    print(f"Prometheus: {initial_output}")
+                
+                print("✅ Prometheus服务已启动并保持运行")
+                
+                # 保持SSH连接不关闭，让Prometheus持续运行
+                # 注意：这个SSH连接将持续保持开启状态
+                return ssh_prometheus
+                
+            except Exception as e:
+                print(f"❌ 启动Prometheus时出错: {e}")
+                return None
+        
+        # 启动Grafana服务
+        def start_grafana():
+            try:
+                ssh_grafana = paramiko.SSHClient()
+                ssh_grafana.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh_grafana.connect(server_ip[0], username="ubuntu", password="Dwf12345")
+                
+                print("启动Grafana服务...")
+                stdin, stdout, stderr = ssh_grafana.exec_command(
+                    "cd grafana-12.1.1/ && ./bin/grafana-server web",
+                    get_pty=True
+                )
+                
+                # 读取初始启动输出
+                print("Grafana启动输出:")
+                time.sleep(3)  # 等待服务启动
+                
+                # 检查输出是否有错误
+                if stdout.channel.recv_ready():
+                    initial_output = stdout.read(1024).decode('utf-8')
+                    print(f"Grafana: {initial_output}")
+                
+                print("✅ Grafana服务已启动并保持运行")
+                
+                # 保持SSH连接不关闭，让Grafana持续运行
+                # 注意：这个SSH连接将持续保持开启状态
+                return ssh_grafana
+                
+            except Exception as e:
+                print(f"❌ 启动Grafana时出错: {e}")
+                return None
+        
+        # 启动Prometheus线程
+        prometheus_thread = threading.Thread(target=lambda: globals().update({'prometheus_ssh': start_prometheus()}))
+        prometheus_thread.daemon = True  # 设为守护线程
+        prometheus_thread.start()
+        
+        # 等待Prometheus启动
+        time.sleep(5)
+        
+        # 启动Grafana线程
+        grafana_thread = threading.Thread(target=lambda: globals().update({'grafana_ssh': start_grafana()}))
+        grafana_thread.daemon = True  # 设为守护线程
+        grafana_thread.start()
+        
+        # 等待Grafana启动
+        time.sleep(5)
+        
+        print("【监控系统】Prometheus和Grafana已启动完成")
+        print(f"Prometheus Web界面: http://{server_ip[0]}:9090")
+        print(f"Grafana Web界面: http://{server_ip[0]}:3000")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ 启动监控系统时出现异常: {e}")
+        return False
+
+
 def monitor_and_restart(config_threads, data_threads, restart_count):
     """
     监控ConfigNode和DataNode的运行状态，当发现节点停止时自动重启
@@ -239,7 +338,7 @@ def run_bat_and_parse(bat_path, result_file_path):
         解析得到的结果字典，如果有错误则返回None
     """
     try:
-        timeout_seconds = 1500  # 设置超时时间为25分钟
+        timeout_seconds = 1800  # 设置超时时间为30分钟
         bat_directory = os.path.dirname(bat_path)
         # 获取bat文件的文件名
         bat_filename = os.path.basename(bat_path)

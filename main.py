@@ -2,7 +2,7 @@ import threading
 import time
 from config import node_num, abnormal_scenario, server_ip,INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH
 from tools import startConfigNode, startDataNode
-from node_outage import run_repeated_node_outage_scenarios
+from node_outage import run_single_node_outage_scenario
 
 if __name__ == "__main__":
     stop_event = threading.Event()  # 保留原stop_event，供监控函数（如monitor_and_restart）使用
@@ -11,9 +11,9 @@ if __name__ == "__main__":
     print(f"{'='*60}")
 
     if abnormal_scenario == "node_outage":
-        # 执行节点宕机场景，自动触发三次测试并输出结果
-        print("开始执行节点宕机测试流程...")
-        run_repeated_node_outage_scenarios(3, INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH)
+        # 执行单次节点宕机场景，自动触发两次测试并输出结果
+        print("开始执行单次节点宕机测试流程...")
+        run_single_node_outage_scenario(INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH)
     else:
         # 默认场景：仅启动所有节点，不执行测试
         print("\nℹ️  无异常场景（或场景配置错误），仅启动所有节点...")
@@ -35,11 +35,4 @@ if __name__ == "__main__":
         config_threads = []
         data_threads = []
         restart_count = [0] * node_num
-        # monitor_thread = threading.Thread(
-        #     target=monitor_and_restart,
-        #     args=(config_threads, data_threads, restart_count),
-        #     daemon=True
-        # )
-        # monitor_thread.start()
-        # monitor_thread.join()
             
