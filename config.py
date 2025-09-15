@@ -1,7 +1,7 @@
 #node
 node_num = 3
 server_ip = ['172.20.0.10','172.20.0.15','172.20.0.16']
-abnormal_scenario = "node_outage"
+abnormal_scenario = "symmetric_network_partition"
 
 #path
 INPUT_BAT_PATH = "C:\\Users\\heting\\Desktop\\test2\\iot-benchmark-iotdb-2.0\\benchmark.bat"

@@ -1,5 +1,4 @@
 import json
-import paramiko
 import time
 import threading
 import random
@@ -9,7 +8,7 @@ import os
 from tools import startConfigNode, startDataNode,stopNode,run_bat_and_parse,start_monitoring_system
 
 
-def run_single_node_outage_scenario(bat_path: str = "test.bat", 
+def node_outage_scenario(bat_path: str = "test.bat", 
                                    test_result_file_path: str = "test_result.txt",
                                    storing_path: str = "single_run_results") -> None:
     """
