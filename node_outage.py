@@ -98,8 +98,8 @@ def node_outage_scenario_single_run(bat_path, test_result_file_path, output_stor
         print("【步骤4/6】节点监控系统启动完成")
 
         # -------------------------- 5. 第一次测试：等待20分钟后进行 --------------------------
-        print("\n【步骤5/6】等待20分钟，准备第一次测试（节点启动后稳定测试）...")
-        time.sleep(20 * 60)  # 等待20分钟
+        print("\n【步骤5/6】等待10分钟，准备第一次测试（节点启动后稳定测试）...")
+        time.sleep(600)  # 等待10分钟
         first_test = run_bat_and_parse(
             bat_path=bat_path,
             result_file_path=test_result_file_path
