@@ -350,7 +350,7 @@ def run_bat_and_parse(bat_path, result_file_path):
         解析得到的结果字典，如果有错误则返回None
     """
     try:
-        timeout_seconds = 1800  # 设置超时时间为30分钟
+        timeout_seconds = 2100  # 设置超时时间为35分钟
         bat_directory = os.path.dirname(bat_path)
         # 获取bat文件的文件名
         bat_filename = os.path.basename(bat_path)
