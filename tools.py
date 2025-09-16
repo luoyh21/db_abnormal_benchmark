@@ -3,8 +3,20 @@ import subprocess
 import paramiko
 import threading
 import time
-from config import node_num, abnormal_scenario, server_ip
+import logging
+from config import server_ip, OUTPUT_STORE_PATH
 from typing import List, Dict, Any
+
+# 配置日志
+os.makedirs(OUTPUT_STORE_PATH, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(OUTPUT_STORE_PATH, 'info.log'), encoding='utf-8'),
+        logging.StreamHandler()  # 同时输出到控制台
+    ]
+)
 
 def startConfigNode(index):
     """启动指定索引的ConfigNode"""
@@ -15,23 +27,23 @@ def startConfigNode(index):
         
         stdin, stdout, stderr = ssh.exec_command(
             "sudo ./apache-iotdb-2.0.4-all-bin/sbin/start-confignode.sh -d", get_pty=True)
-        print(f"启动 ConfigNode {index}")
+        logging.info(f"启动 ConfigNode {index}")
         
         # 读取输出
         while not stdout.channel.exit_status_ready():
             result = stdout.readline()
             if result:
-                print(f"{server_ip[index]} {result}", end="")
+                logging.info(f"{server_ip[index]} {result.strip()}")
             if stdout.channel.exit_status_ready():
                 remaining = stdout.readlines()
                 for line in remaining:
-                    print(f"{server_ip[index]} {line}", end="")
+                    logging.info(f"{server_ip[index]} {line.strip()}")
                 break
                 
         time.sleep(5)  # 给予ConfigNode启动时间
         
     except Exception as e:
-        print(f"启动ConfigNode {index} 时出错: {e}")
+        logging.error(f"启动ConfigNode {index} 时出错: {e}")
     finally:
         if 'ssh' in locals():
             ssh.close()
@@ -45,21 +57,21 @@ def startDataNode(index):
         
         stdin, stdout, stderr = ssh.exec_command(
             "sudo ./apache-iotdb-2.0.4-all-bin/sbin/start-datanode.sh -d", get_pty=True)
-        print(f"启动 DataNode {index}")
+        logging.info(f"启动 DataNode {index}")
         
         # 读取输出
         while not stdout.channel.exit_status_ready():
             result = stdout.readline()
             if result:
-                print(f"{server_ip[index]} {result}", end="")
+                logging.info(f"{server_ip[index]} {result.strip()}")
             if stdout.channel.exit_status_ready():
                 remaining = stdout.readlines()
                 for line in remaining:
-                    print(f"{server_ip[index]} {line}", end="")
+                    logging.info(f"{server_ip[index]} {line.strip()}")
                 break
                 
     except Exception as e:
-        print(f"启动DataNode {index} 时出错: {e}")
+        logging.error(f"启动DataNode {index} 时出错: {e}")
     finally:
         if 'ssh' in locals():
             ssh.close()
@@ -74,7 +86,7 @@ def stopNode(index, only_datanode=False):
                 "sudo ./apache-iotdb-2.0.4-all-bin/sbin/stop-confignode.sh", get_pty=True)
             while not stdout.channel.exit_status_ready():
                 result = stdout.readline()
-                print(server_ip[index], result)
+                logging.info(f"{server_ip[index]} {result.strip()}")
                 if stdout.channel.exit_status_ready():
                     a = stdout.readlines()
                     break
@@ -83,12 +95,12 @@ def stopNode(index, only_datanode=False):
             "sudo ./apache-iotdb-2.0.4-all-bin/sbin/stop-datanode.sh", get_pty=True)
         while not stdout.channel.exit_status_ready():
             result = stdout.readline()
-            print(server_ip[index], result)
+            logging.info(f"{server_ip[index]} {result.strip()}")
             if stdout.channel.exit_status_ready():
                 a = stdout.readlines()
                 break
     except Exception as e:
-        print(e)
+        logging.error(str(e))
     finally:
         ssh.close()
 
@@ -97,7 +109,7 @@ def start_monitoring_system():
     """
     启动节点监控系统：在index=0的机器上启动Prometheus和Grafana服务
     """
-    print("\n【启动监控系统】开始启动Prometheus和Grafana...")
+    logging.info("\n【启动监控系统】开始启动Prometheus和Grafana...")
     
     try:
         # 启动Prometheus服务
@@ -107,29 +119,29 @@ def start_monitoring_system():
                 ssh_prometheus.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh_prometheus.connect(server_ip[0], username="ubuntu", password="Dwf12345")
                 
-                print("启动Prometheus服务...")
+                logging.info("启动Prometheus服务...")
                 stdin, stdout, stderr = ssh_prometheus.exec_command(
                     "./prometheus-3.5.0.linux-amd64/prometheus --config.file=prometheus-3.5.0.linux-amd64/prometheus.yml --storage.tsdb.retention.time=180d",
                     get_pty=True
                 )
                 
                 # 读取初始启动输出
-                print("Prometheus启动输出:")
+                logging.info("Prometheus启动输出:")
                 time.sleep(3)  # 等待服务启动
                 
                 # 检查输出是否有错误
                 if stdout.channel.recv_ready():
                     initial_output = stdout.read(1024).decode('utf-8')
-                    print(f"Prometheus: {initial_output}")
+                    logging.info(f"Prometheus: {initial_output}")
                 
-                print("✅ Prometheus服务已启动并保持运行")
+                logging.info("✅ Prometheus服务已启动并保持运行")
                 
                 # 保持SSH连接不关闭，让Prometheus持续运行
                 # 注意：这个SSH连接将持续保持开启状态
                 return ssh_prometheus
                 
             except Exception as e:
-                print(f"❌ 启动Prometheus时出错: {e}")
+                logging.error(f"❌ 启动Prometheus时出错: {e}")
                 return None
         
         # 启动Grafana服务
@@ -139,29 +151,29 @@ def start_monitoring_system():
                 ssh_grafana.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh_grafana.connect(server_ip[0], username="ubuntu", password="Dwf12345")
                 
-                print("启动Grafana服务...")
+                logging.info("启动Grafana服务...")
                 stdin, stdout, stderr = ssh_grafana.exec_command(
                     "cd grafana-12.1.1/ && ./bin/grafana-server web",
                     get_pty=True
                 )
                 
                 # 读取初始启动输出
-                print("Grafana启动输出:")
+                logging.info("Grafana启动输出:")
                 time.sleep(3)  # 等待服务启动
                 
                 # 检查输出是否有错误
                 if stdout.channel.recv_ready():
                     initial_output = stdout.read(1024).decode('utf-8')
-                    print(f"Grafana: {initial_output}")
+                    logging.info(f"Grafana: {initial_output}")
                 
-                print("✅ Grafana服务已启动并保持运行")
+                logging.info("✅ Grafana服务已启动并保持运行")
                 
                 # 保持SSH连接不关闭，让Grafana持续运行
                 # 注意：这个SSH连接将持续保持开启状态
                 return ssh_grafana
                 
             except Exception as e:
-                print(f"❌ 启动Grafana时出错: {e}")
+                logging.error(f"❌ 启动Grafana时出错: {e}")
                 return None
         
         # 启动Prometheus线程
@@ -180,14 +192,14 @@ def start_monitoring_system():
         # 等待Grafana启动
         time.sleep(5)
         
-        print("【监控系统】Prometheus和Grafana已启动完成")
-        print(f"Prometheus Web界面: http://{server_ip[0]}:9090")
-        print(f"Grafana Web界面: http://{server_ip[0]}:3000")
+        logging.info("【监控系统】Prometheus和Grafana已启动完成")
+        logging.info(f"Prometheus Web界面: http://{server_ip[0]}:9090")
+        logging.info(f"Grafana Web界面: http://{server_ip[0]}:3000")
         
         return True
         
     except Exception as e:
-        print(f"❌ 启动监控系统时出现异常: {e}")
+        logging.error(f"❌ 启动监控系统时出现异常: {e}")
         return False
 
 
@@ -203,14 +215,14 @@ def monitor_and_restart(config_threads, data_threads, restart_count):
     try:
         while True:
             time.sleep(1500)
-            print("\n当前重启计数:", restart_count)
+            logging.info(f"\n当前重启计数: {restart_count}")
             
             # 检查并重启ConfigNode
             for i, t in enumerate(config_threads):
                 if t.is_alive():
-                    print(f"ConfigNode {i+1} 运行中")
+                    logging.info(f"ConfigNode {i+1} 运行中")
                 else:
-                    print(f"ConfigNode {i+1} 已停止，正在重启...")
+                    logging.info(f"ConfigNode {i+1} 已停止，正在重启...")
                     # 重启ConfigNode
                     new_thread = threading.Thread(target=startConfigNode, args=(i,))
                     new_thread.start()
@@ -220,9 +232,9 @@ def monitor_and_restart(config_threads, data_threads, restart_count):
             # 检查并重启DataNode
             for i, t in enumerate(data_threads):
                 if t.is_alive():
-                    print(f"DataNode {i+1} 运行中")
+                    logging.info(f"DataNode {i+1} 运行中")
                 else:
-                    print(f"DataNode {i+1} 已停止，正在重启...")
+                    logging.info(f"DataNode {i+1} 已停止，正在重启...")
                     # 重启DataNode
                     new_thread = threading.Thread(target=startDataNode, args=(i,))
                     new_thread.start()
@@ -230,15 +242,15 @@ def monitor_and_restart(config_threads, data_threads, restart_count):
                     restart_count[i] += 1
                     
     except KeyboardInterrupt:
-        print("\n收到中断信号，正在退出监控...")
+        logging.info("\n收到中断信号，正在退出监控...")
     finally:
         # 等待所有线程结束
-        print("等待所有节点线程结束...")
+        logging.info("等待所有节点线程结束...")
         for t in config_threads:
             t.join()
         for t in data_threads:
             t.join()
-        print("所有节点线程已结束")
+        logging.info("所有节点线程已结束")
 
 def parse_test_matrices(source_filename):
     """
@@ -296,10 +308,10 @@ def parse_test_matrices(source_filename):
         
         # 4. 验证矩阵是否完整找到
         if result_matrix_start == -1 or result_matrix_end == -1:
-            print(f"错误：在源文件 {source_filename} 中未找到完整的Result Matrix")
+            logging.error(f"错误：在源文件 {source_filename} 中未找到完整的Result Matrix")
             return None
         if latency_matrix_start == -1 or latency_matrix_end == -1:
-            print(f"错误：在源文件 {source_filename} 中未找到完整的Latency (ms) Matrix")
+            logging.error(f"错误：在源文件 {source_filename} 中未找到完整的Latency (ms) Matrix")
             return None
         
         # 5. 提取两个矩阵的完整内容（包含表头、数据行和分隔线）
@@ -312,17 +324,17 @@ def parse_test_matrices(source_filename):
             'latency_matrix': latency_matrix_content
         }
         
-        print(f"成功：已从 {source_filename} 中解析出矩阵数据")
+        logging.info(f"成功：已从 {source_filename} 中解析出矩阵数据")
         return results
     
     except FileNotFoundError:
-        print(f"错误：源文件 {source_filename} 不存在")
+        logging.error(f"错误：源文件 {source_filename} 不存在")
         return None
     except PermissionError:
-        print(f"错误：没有权限读取 {source_filename}")
+        logging.error(f"错误：没有权限读取 {source_filename}")
         return None
     except Exception as e:
-        print(f"解析文件时发生未知错误：{str(e)}")
+        logging.error(f"解析文件时发生未知错误：{str(e)}")
         return None
     
 def run_bat_and_parse(bat_path, result_file_path):
@@ -342,11 +354,11 @@ def run_bat_and_parse(bat_path, result_file_path):
         bat_directory = os.path.dirname(bat_path)
         # 获取bat文件的文件名
         bat_filename = os.path.basename(bat_path)
-        print(f"开始执行bat文件: {bat_path}")
+        logging.info(f"开始执行bat文件: {bat_path}")
         
         # 执行bat文件
-        print(f"将进入目录: {bat_directory}")
-        print(f"将执行命令: .\\{bat_filename}")
+        logging.info(f"将进入目录: {bat_directory}")
+        logging.info(f"将执行命令: .\\{bat_filename}")
 
         process = subprocess.Popen(
             bat_path, 
@@ -354,31 +366,31 @@ def run_bat_and_parse(bat_path, result_file_path):
             text=True            # 将输出视为文本
         )
         
-        print(f"bat文件 '{bat_path}' 已启动，等待最多 {timeout_seconds} 秒...")
+        logging.info(f"bat文件 '{bat_path}' 已启动，等待最多 {timeout_seconds} 秒...")
 
         # 等待子进程完成，设置超时
         return_code = process.wait(timeout=timeout_seconds)
 
         if return_code is not None:
             # 子进程在超时时间内完成
-            print(f"bat文件执行完成，返回码: {return_code}")
+            logging.info(f"bat文件执行完成，返回码: {return_code}")
         else:
-            print(f"主程序继续")
+            logging.info(f"主程序继续")
 
     except subprocess.TimeoutExpired:
         # 如果 process.wait() 抛出 TimeoutExpired 异常，说明子进程在规定时间内没有完成
-        print(f"主程序继续")
+        logging.info(f"主程序继续")
     except Exception as e:
-        print(f"执行bat文件时发生未知错误: {e}")
+        logging.error(f"执行bat文件时发生未知错误: {e}")
 
-    print("--- 60秒（或bat文件完成后）后，继续执行后续代码 ---")
+    logging.info("--- 60秒（或bat文件完成后）后，继续执行后续代码 ---")
         
     # 解析结果文件
-    print(f"开始解析结果文件: {result_file_path}")
+    logging.info(f"开始解析结果文件: {result_file_path}")
     results = parse_test_matrices(result_file_path)
     
     if not results:
-        print("未能解析到有效结果")
+        logging.warning("未能解析到有效结果")
         
     return results
     

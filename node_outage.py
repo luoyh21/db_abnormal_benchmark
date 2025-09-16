@@ -2,10 +2,21 @@ import json
 import time
 import threading
 import random
-from config import node_num,server_ip,abnormal_scenario
-from typing import List, Dict, Any
+import logging
+from config import node_num,server_ip,abnormal_scenario,OUTPUT_STORE_PATH
 import os
 from tools import startConfigNode, startDataNode,stopNode,run_bat_and_parse,start_monitoring_system
+
+# 配置日志
+os.makedirs(OUTPUT_STORE_PATH, exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(OUTPUT_STORE_PATH, 'info.log'), encoding='utf-8'),
+        logging.StreamHandler()  # 同时输出到控制台
+    ]
+)
 
 
 def node_outage_scenario(bat_path: str = "test.bat", 
@@ -22,9 +33,9 @@ def node_outage_scenario(bat_path: str = "test.bat",
     current_time = int(time.time())
     output_store_path = f"{storing_path}\\result_{abnormal_scenario}_{current_time}\\single_run.json"
     
-    print(f"\n{'='*80}")
-    print(f"开始单次节点宕机场景实验")
-    print(f"{'='*80}")
+    logging.info(f"\n{'='*80}")
+    logging.info(f"开始单次节点宕机场景实验")
+    logging.info(f"{'='*80}")
     
     # 调用节点宕机场景函数
     exp_result = node_outage_scenario_single_run(
@@ -33,7 +44,7 @@ def node_outage_scenario(bat_path: str = "test.bat",
         output_store_path=output_store_path
     )
     
-    print(f"\n实验完成！结果已保存到 {output_store_path}")
+    logging.info(f"\n实验完成！结果已保存到 {output_store_path}")
     return exp_result
 
 def node_outage_scenario_single_run(bat_path, test_result_file_path, output_store_path):
@@ -59,7 +70,7 @@ def node_outage_scenario_single_run(bat_path, test_result_file_path, output_stor
 
     try:
         # -------------------------- 1. 清理所有节点 --------------------------
-        print("【步骤1/6】清理所有节点...")
+        logging.info("【步骤1/6】清理所有节点...")
         clean_threads = []
         for idx in range(node_num):
             t = threading.Thread(target=stopNode, args=(idx,))
@@ -68,10 +79,10 @@ def node_outage_scenario_single_run(bat_path, test_result_file_path, output_stor
 
         time.sleep(10)
 
-        print("【步骤1/6】所有节点清理完成")
+        logging.info("【步骤1/6】所有节点清理完成")
 
         # -------------------------- 2. 启动所有ConfigNode --------------------------
-        print("\n【步骤2/6】启动所有ConfigNode...")
+        logging.info("\n【步骤2/6】启动所有ConfigNode...")
         config_threads = []
         for idx in range(node_num):
             t = threading.Thread(target=startConfigNode, args=(idx,))
@@ -79,10 +90,10 @@ def node_outage_scenario_single_run(bat_path, test_result_file_path, output_stor
             config_threads.append(t)
         time.sleep(60)
 
-        print("【步骤2/6】所有ConfigNode启动完成")
+        logging.info("【步骤2/6】所有ConfigNode启动完成")
 
         # -------------------------- 3. 启动所有DataNode --------------------------
-        print("\n【步骤3/6】启动所有DataNode...")
+        logging.info("\n【步骤3/6】启动所有DataNode...")
         data_threads = []
         for idx in range(node_num):
             t = threading.Thread(target=startDataNode, args=(idx,))
@@ -90,15 +101,15 @@ def node_outage_scenario_single_run(bat_path, test_result_file_path, output_stor
             data_threads.append(t)
         time.sleep(60)
 
-        print("【步骤3/6】所有DataNode启动完成")
+        logging.info("【步骤3/6】所有DataNode启动完成")
 
         # -------------------------- 4. 启动节点监控系统 --------------------------
-        print("\n【步骤4/6】启动节点监控系统（Prometheus + Grafana）...")
+        logging.info("\n【步骤4/6】启动节点监控系统（Prometheus + Grafana）...")
         start_monitoring_system()
-        print("【步骤4/6】节点监控系统启动完成")
+        logging.info("【步骤4/6】节点监控系统启动完成")
 
         # -------------------------- 5. 第一次测试：等待20分钟后进行 --------------------------
-        print("\n【步骤5/6】等待20分钟，准备第一次测试（节点启动后稳定测试）...")
+        logging.info("\n【步骤5/6】等待20分钟，准备第一次测试（节点启动后稳定测试）...")
         time.sleep(20 * 60)  # 等待20分钟
         first_test = run_bat_and_parse(
             bat_path=bat_path,
@@ -108,38 +119,38 @@ def node_outage_scenario_single_run(bat_path, test_result_file_path, output_stor
         first_test["test_phase"] = "normal"
         first_test["phase_description"] = "节点启动后稳定测试（正常状态）"
         all_test_results["test_results"].append(first_test)
-        print("【步骤5/6】第一次测试完成")
+        logging.info("【步骤5/6】第一次测试完成")
 
         # -------------------------- 6. 第二次测试：运行30分钟，期间进行DataNode操作 --------------------------
-        print("\n【步骤6/6】开始第二次测试（运行30分钟，期间进行DataNode停止和重启操作）...")
+        logging.info("\n【步骤6/6】开始第二次测试（运行30分钟，期间进行DataNode停止和重启操作）...")
         
         # 随机选择一个DataNode宕机(不停止作为测试启动的DataNode 0)
         fail_idx = random.randint(1, node_num - 1)
-        print(f"选择DataNode {fail_idx}作为故障节点")
+        logging.info(f"选择DataNode {fail_idx}作为故障节点")
         
         # 创建异步执行DataNode操作的线程
         def datanode_operation():
-            print(f"等待10分钟后停止DataNode {fail_idx}...")
+            logging.info(f"等待10分钟后停止DataNode {fail_idx}...")
             time.sleep(10 * 60)  # 等待10分钟
-            print(f"停止DataNode {fail_idx}...")
+            logging.info(f"停止DataNode {fail_idx}...")
             stop_thread = threading.Thread(target=stopNode, args=(fail_idx, True))  # 只停止DataNode
             stop_thread.start()
             stop_thread.join()  # 等待停止完成
             
-            print(f"等待5分钟后重启DataNode {fail_idx}...")
+            logging.info(f"等待5分钟后重启DataNode {fail_idx}...")
             time.sleep(5 * 60)  # 等待5分钟
-            print(f"重启DataNode {fail_idx}...")
+            logging.info(f"重启DataNode {fail_idx}...")
             restart_thread = threading.Thread(target=startDataNode, args=(fail_idx,))
             restart_thread.start()
             restart_thread.join()  # 等待重启完成
-            print(f"DataNode {fail_idx}重启完成")
+            logging.info(f"DataNode {fail_idx}重启完成")
         
         # 启动DataNode操作线程
         operation_thread = threading.Thread(target=datanode_operation)
         operation_thread.start()
         
         # 同时开始第二次测试
-        print("开始第二次测试...")
+        logging.info("开始第二次测试...")
         second_test = run_bat_and_parse(
             bat_path=bat_path,
             result_file_path=test_result_file_path
@@ -152,23 +163,23 @@ def node_outage_scenario_single_run(bat_path, test_result_file_path, output_stor
         
         # 等待DataNode操作完成
         operation_thread.join()
-        print("【步骤6/6】第二次测试和DataNode操作均完成")
+        logging.info("【步骤6/6】第二次测试和DataNode操作均完成")
 
         # -------------------------- 7. 更新场景状态，存储结果 --------------------------
         all_test_results["end_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         all_test_results["status"] = "finished"  # 场景正常完成
-        print(f"\n{'='*60}")
-        print(f"场景执行完成！开始将结果写入存储文件：{output_store_path}")
+        logging.info(f"\n{'='*60}")
+        logging.info(f"场景执行完成！开始将结果写入存储文件：{output_store_path}")
         
         os.makedirs(os.path.dirname(output_store_path), exist_ok=True)
         with open(output_store_path, 'w', encoding='utf-8') as f:
             json.dump(all_test_results, f, ensure_ascii=False, indent=2)
-        print(f"✅ 结果已成功存储到 {output_store_path}")
+        logging.info(f"✅ 结果已成功存储到 {output_store_path}")
 
     except Exception as e:
         # 捕获场景执行中的全局异常，更新状态并存储
         error_msg = f"场景执行异常：{str(e)}"
-        print(f"\n❌ {error_msg}")
+        logging.error(f"\n❌ {error_msg}")
         all_test_results["end_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         all_test_results["status"] = "failed"
         all_test_results["error_msg"] = error_msg
@@ -176,7 +187,7 @@ def node_outage_scenario_single_run(bat_path, test_result_file_path, output_stor
         os.makedirs(os.path.dirname(output_store_path), exist_ok=True)
         with open(output_store_path, 'w', encoding='utf-8') as f:
             json.dump(all_test_results, f, ensure_ascii=False, indent=2)
-        print(f"⚠️  已将异常状态下的结果存储到 {output_store_path}")
+        logging.warning(f"⚠️  已将异常状态下的结果存储到 {output_store_path}")
 
     # 返回完整的测试结果集合（便于后续程序调用）
     return all_test_results

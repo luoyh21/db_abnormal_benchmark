@@ -1,1 +1,2 @@
 测试IoTDB、涛思、InfluxDB等各数据库在异常场景下的性能的基准测试工具，给出在丢包、对称式网络分区等异常场景下正常-异常-正常三阶段的吞吐率及成功率等各项信息。
+需要在运行测试工具的本机安装IoT-benchmark；在测试的机器上安装数据库、Prometheus及Grafana。需要按照config.example的格式创建并填写config.py。

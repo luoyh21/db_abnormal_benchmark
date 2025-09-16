@@ -1,3 +1,4 @@
 *.pyc
 result/*
 test.py
+config.py
