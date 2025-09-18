@@ -5,7 +5,7 @@ import os
 from config import node_num, abnormal_scenario, INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH
 from tools import startConfigNode, startDataNode
 from node_outage import node_outage_scenario
-from symmetric_network_partition import symmetric_network_partition
+from symmetric_network_partition import symmetric_network_partition_scenario
 
 # 配置日志
 os.makedirs(OUTPUT_STORE_PATH, exist_ok=True)
@@ -30,7 +30,7 @@ if __name__ == "__main__":
         node_outage_scenario(INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH)
     elif abnormal_scenario == "symmetric_network_partition":
         logging.info("开始执行对称网络分区测试流程...")
-        symmetric_network_partition(INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH)
+        symmetric_network_partition_scenario(INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH)
     else:
         # 默认场景：仅启动所有节点，不执行测试
         logging.info("\nℹ️  无异常场景（或场景配置错误），仅启动所有节点...")

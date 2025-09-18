@@ -269,13 +269,14 @@ def symmetric_network_partition_single_run(bat_path, test_result_file_path, outp
         all_test_results["test_results"].append(first_test)
         logging.info("【步骤5/6】第一次测试完成")
 
-        # -------------------------- 6. 第二次测试：运行30分钟，期间进行网络分区操作 --------------------------
-        logging.info("\n【步骤6/6】开始第二次测试（运行30分钟，期间进行网络分区操作）...")
+        # -------------------------- 6. 第二次测试：等待15分钟后开始，期间进行网络分区操作 --------------------------
+        logging.info("\n【步骤6/6】等待15分钟后开始第二次测试（期间进行网络分区操作）...")
+        time.sleep(15 * 60)  # 等待15分钟
         
         # 创建异步执行网络分区操作的线程
         def network_partition_operation():
-            logging.info("等待10分钟后应用网络分区...")
-            time.sleep(10 * 60)  # 等待10分钟
+            logging.info("等待5分钟后应用网络分区...")
+            time.sleep(5 * 60)  # 等待5分钟
             
             logging.info("开始应用网络分区...")
             apply_network_partition(group1, group2)
