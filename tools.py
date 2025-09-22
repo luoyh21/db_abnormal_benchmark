@@ -350,7 +350,7 @@ def run_bat_and_parse(bat_path, result_file_path):
         解析得到的结果字典，如果有错误则返回None
     """
     try:
-        timeout_seconds = 2400  # 设置超时时间为40分钟
+        timeout_seconds = 10800  # 设置超时时间为180分钟
         bat_directory = os.path.dirname(bat_path)
         # 获取bat文件的文件名
         bat_filename = os.path.basename(bat_path)
@@ -363,27 +363,65 @@ def run_bat_and_parse(bat_path, result_file_path):
         process = subprocess.Popen(
             bat_path, 
             cwd=bat_directory,   # 设置子进程的工作目录
-            text=True            # 将输出视为文本
+            text=True,           # 将输出视为文本
+            stdin=subprocess.PIPE,   # 允许向子进程发送输入
+            stdout=subprocess.PIPE,  # 捕获输出
+            stderr=subprocess.STDOUT # 将错误输出合并到标准输出
         )
         
         logging.info(f"bat文件 '{bat_path}' 已启动，等待最多 {timeout_seconds} 秒...")
 
+        # 监控子进程输出并处理交互
+        def monitor_and_interact():
+            """监控子进程输出，每隔10分钟自动发送空格"""
+            try:
+                last_space_time = time.time()
+                space_interval = 600  # 10分钟 = 600秒
+                
+                while process.poll() is None:  # 进程还在运行
+                    output = process.stdout.readline()
+                    if output:
+                        # 不再将输出记录到日志中
+                        pass
+                    
+                    # 检查是否到了发送空格的时间
+                    current_time = time.time()
+                    if current_time - last_space_time >= space_interval:
+                        logging.info(f"每隔10分钟自动发送空格...")
+                        process.stdin.write(" \n")
+                        process.stdin.flush()
+                        last_space_time = current_time
+                            
+            except Exception as e:
+                logging.error(f"监控子进程输出时出错: {e}")
+        
+        # 在后台线程中监控输出
+        monitor_thread = threading.Thread(target=monitor_and_interact)
+        monitor_thread.daemon = True
+        monitor_thread.start()
+
         # 等待子进程完成，设置超时
-        return_code = process.wait(timeout=timeout_seconds)
-
-        if return_code is not None:
-            # 子进程在超时时间内完成
+        try:
+            return_code = process.wait(timeout=timeout_seconds)
             logging.info(f"bat文件执行完成，返回码: {return_code}")
-        else:
-            logging.info(f"主程序继续")
+        except subprocess.TimeoutExpired:
+            logging.warning(f"bat文件执行超时 ({timeout_seconds}秒)，强制终止进程")
+            process.terminate()
+            try:
+                process.wait(timeout=5)  # 给进程5秒时间优雅退出
+            except subprocess.TimeoutExpired:
+                process.kill()  # 强制杀死进程
+            return_code = -1
+        
+        # 确保stdin被关闭
+        if process.stdin:
+            process.stdin.close()
 
-    except subprocess.TimeoutExpired:
-        # 如果 process.wait() 抛出 TimeoutExpired 异常，说明子进程在规定时间内没有完成
-        logging.info(f"主程序继续")
     except Exception as e:
         logging.error(f"执行bat文件时发生未知错误: {e}")
+        return_code = -1
 
-    logging.info("--- 60秒（或bat文件完成后）后，继续执行后续代码 ---")
+    logging.info("--- bat文件执行完成，继续执行后续代码 ---")
         
     # 解析结果文件
     logging.info(f"开始解析结果文件: {result_file_path}")

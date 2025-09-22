@@ -121,9 +121,9 @@ def node_outage_scenario_single_run(bat_path, test_result_file_path, output_stor
         all_test_results["test_results"].append(first_test)
         logging.info("【步骤5/6】第一次测试完成")
 
-        # -------------------------- 6. 第二次测试：等待15分钟后开始，期间进行DataNode操作 --------------------------
-        logging.info("\n【步骤6/6】等待15分钟后开始第二次测试（期间进行DataNode停止和重启操作）...")
-        time.sleep(15 * 60)  # 等待15分钟
+        # -------------------------- 6. 第二次测试：等待30分钟后开始，期间进行DataNode操作 --------------------------
+        logging.info("\n【步骤6/6】等待30分钟后开始第二次测试（期间进行DataNode停止和重启操作）...")
+        time.sleep(30 * 60)  # 等待30分钟
         
         # 随机选择一个DataNode宕机(不停止作为测试启动的DataNode 0)
         fail_idx = random.randint(1, node_num - 1)
@@ -131,15 +131,15 @@ def node_outage_scenario_single_run(bat_path, test_result_file_path, output_stor
         
         # 创建异步执行DataNode操作的线程
         def datanode_operation():
-            logging.info(f"等待5分钟后停止DataNode {fail_idx}...")
-            time.sleep(5 * 60)  # 等待5分钟
+            logging.info(f"等待10分钟后停止DataNode {fail_idx}...")
+            time.sleep(10 * 60)  # 等待10分钟
             logging.info(f"停止DataNode {fail_idx}...")
             stop_thread = threading.Thread(target=stopNode, args=(fail_idx, True))  # 只停止DataNode
             stop_thread.start()
             stop_thread.join()  # 等待停止完成
             
-            logging.info(f"等待5分钟后重启DataNode {fail_idx}...")
-            time.sleep(5 * 60)  # 等待5分钟
+            logging.info(f"等待10分钟后重启DataNode {fail_idx}...")
+            time.sleep(10 * 60)  # 等待10分钟
             logging.info(f"重启DataNode {fail_idx}...")
             restart_thread = threading.Thread(target=startDataNode, args=(fail_idx,))
             restart_thread.start()
