@@ -3,6 +3,10 @@ node_num = 3
 server_ip = ['111.1.1.1','111.1.1.2','111.1.1.3']
 abnormal_scenario = "symmetric_network_partition"
 
+# 传输时间异常配置
+TRANSMISSION_DELAY_MS = 100  # 传输延迟时间（毫秒）
+DELAY_VARIANCE_MS = 10       # 延迟变化范围（毫秒）
+
 #path
 INPUT_BAT_PATH = "C:\\etc\\iot-benchmark-iotdb-2.0\\benchmark.bat"
 INPUT_TEST_RESULT_PATH = "C:\\etc\\iot-benchmark-iotdb-2.0\\logs\\log_info.log"
