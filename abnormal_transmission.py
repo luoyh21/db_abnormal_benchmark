@@ -310,20 +310,20 @@ def abnormal_transmission_single_run(bat_path, test_result_file_path, output_sto
         all_test_results["test_results"].append(first_test)
         logging.info("【步骤5/6】第一次测试完成")
 
-        # -------------------------- 6. 第二次测试：等待15分钟后开始，期间进行传输延迟 --------------------------
-        logging.info("\n【步骤6/6】等待15分钟后开始第二次测试（期间进行传输延迟操作）...")
-        time.sleep(15 * 60)  # 等待15分钟
+        # -------------------------- 6. 第二次测试：等待30分钟后开始，期间进行传输延迟 --------------------------
+        logging.info("\n【步骤6/6】等待30分钟后开始第二次测试（期间进行传输延迟操作）...")
+        time.sleep(30 * 60)  # 等待30分钟
         
         # 创建异步执行传输延迟操作的线程
         def transmission_delay_operation():
-            logging.info(f"等待5分钟后应用传输延迟（{TRANSMISSION_DELAY_MS}ms ±{DELAY_VARIANCE_MS}ms）...")
-            time.sleep(5 * 60)  # 等待5分钟
+            logging.info(f"等待10分钟后应用传输延迟（{TRANSMISSION_DELAY_MS}ms ±{DELAY_VARIANCE_MS}ms）...")
+            time.sleep(10 * 60)  # 等待10分钟
             
             logging.info("开始应用传输延迟...")
             apply_transmission_delay_to_all_nodes(TRANSMISSION_DELAY_MS, DELAY_VARIANCE_MS)
             
-            logging.info("等待5分钟后移除传输延迟...")
-            time.sleep(5 * 60)  # 等待5分钟
+            logging.info("等待10分钟后移除传输延迟...")
+            time.sleep(10 * 60)  # 等待10分钟
             
             logging.info("开始移除传输延迟...")
             remove_transmission_delay_from_all_nodes()
