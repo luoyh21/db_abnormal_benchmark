@@ -138,8 +138,8 @@ def node_outage_scenario_single_run(bat_path, test_result_file_path, output_stor
             stop_thread.start()
             stop_thread.join()  # 等待停止完成
             
-            logging.info(f"等待10分钟后重启DataNode {fail_idx}...")
-            time.sleep(10 * 60)  # 等待10分钟
+            logging.info(f"等待15分钟后重启DataNode {fail_idx}...")
+            time.sleep(15 * 60)  # 等待15分钟
             logging.info(f"重启DataNode {fail_idx}...")
             restart_thread = threading.Thread(target=startDataNode, args=(fail_idx,))
             restart_thread.start()

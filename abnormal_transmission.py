@@ -322,8 +322,8 @@ def abnormal_transmission_single_run(bat_path, test_result_file_path, output_sto
             logging.info("开始应用传输延迟...")
             apply_transmission_delay_to_all_nodes(TRANSMISSION_DELAY_MS, DELAY_VARIANCE_MS)
             
-            logging.info("等待10分钟后移除传输延迟...")
-            time.sleep(10 * 60)  # 等待10分钟
+            logging.info("等待15分钟后移除传输延迟...")
+            time.sleep(15 * 60)  # 等待15分钟
             
             logging.info("开始移除传输延迟...")
             remove_transmission_delay_from_all_nodes()

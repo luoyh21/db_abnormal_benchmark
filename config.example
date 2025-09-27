@@ -11,3 +11,4 @@ DELAY_VARIANCE_MS = 10       # 延迟变化范围（毫秒）
 INPUT_BAT_PATH = "C:\\etc\\iot-benchmark-iotdb-2.0\\benchmark.bat"
 INPUT_TEST_RESULT_PATH = "C:\\etc\\iot-benchmark-iotdb-2.0\\logs\\log_info.log"
 OUTPUT_STORE_PATH = "C:\\etc\\db_abnormal_benchmark\\result"
+BENCHMARK_CONFIG_PATH = "C:\\Users\\heting\\Desktop\\test2\\iot-benchmark-iotdb-2.0\\conf\\config.properties"

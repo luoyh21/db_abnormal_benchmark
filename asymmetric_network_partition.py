@@ -303,8 +303,8 @@ def asymmetric_network_partition_single_run(bat_path, test_result_file_path, out
             logging.info("开始应用非对称式网络分区...")
             apply_asymmetric_network_partition(group1, group2, bridge_nodes)
             
-            logging.info("等待10分钟后恢复网络连接...")
-            time.sleep(10 * 60)  # 等待10分钟
+            logging.info("等待15分钟后恢复网络连接...")
+            time.sleep(15 * 60)  # 等待15分钟
             
             logging.info("开始恢复网络连接...")
             restore_network_connectivity()
