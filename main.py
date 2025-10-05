@@ -8,6 +8,9 @@ from node_outage import node_outage_scenario
 from symmetric_network_partition import symmetric_network_partition_scenario
 from asymmetric_network_partition import asymmetric_network_partition_scenario
 from abnormal_transmission import abnormal_transmission_scenario
+from over_load import over_load_scenario
+from out_of_order import out_of_order_scenario
+from performance_imbalance import performance_imbalance_scenario
 
 # 配置日志
 os.makedirs(OUTPUT_STORE_PATH, exist_ok=True)
@@ -39,6 +42,15 @@ if __name__ == "__main__":
     elif abnormal_scenario == "abnormal_transmission":
         logging.info("开始执行传输时间异常测试流程...")
         abnormal_transmission_scenario(INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH)
+    elif abnormal_scenario == "over_load":
+        logging.info("开始执行过载测试流程...")
+        over_load_scenario(INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH)
+    elif abnormal_scenario == "out_of_order":
+        logging.info("开始执行消息乱序测试流程...")
+        out_of_order_scenario(INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH)
+    elif abnormal_scenario == "performance_imbalance":
+        logging.info("开始执行性能不平衡测试流程...")
+        performance_imbalance_scenario(INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH)
     else:
         # 默认场景：仅启动所有节点，不执行测试
         logging.info("\nℹ️  无异常场景（或场景配置错误），仅启动所有节点...")
