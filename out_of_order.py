@@ -6,7 +6,7 @@ import logging
 import os
 import shutil
 from config import node_num, server_ip, abnormal_scenario, OUTPUT_STORE_PATH, BENCHMARK_CONFIG_PATH
-from tools import startConfigNode, startDataNode, stopNode, run_bat_and_parse, start_monitoring_system
+from tools import startConfigNode, startDataNode, stopNode, run_bat_and_parse, start_monitoring_system, modify_db_switch
 
 # 配置日志
 os.makedirs(OUTPUT_STORE_PATH, exist_ok=True)
@@ -23,6 +23,7 @@ def modify_benchmark_config_for_write_only():
     """
     修改benchmark配置文件，设置为仅写入模式
     修改OPERATION_PROPORTION为1:0:0:0:0:0:0:0:0:0:0:0
+    同时修改LOOP为1500
     """
     try:
         # 备份原始配置文件
@@ -41,6 +42,9 @@ def modify_benchmark_config_for_write_only():
             if line.strip().startswith('OPERATION_PROPORTION'):
                 modified_lines.append("OPERATION_PROPORTION=1:0:0:0:0:0:0:0:0:0:0:0\n")
                 logging.info("修改OPERATION_PROPORTION: 设置为仅写入模式")
+            elif line.strip().startswith('LOOP'):
+                modified_lines.append("LOOP=1500\n")
+                logging.info("修改LOOP: 设置为1500")
             else:
                 modified_lines.append(line)
         
@@ -48,7 +52,7 @@ def modify_benchmark_config_for_write_only():
         with open(BENCHMARK_CONFIG_PATH, 'w', encoding='utf-8') as f:
             f.writelines(modified_lines)
         
-        logging.info("✅ 配置文件修改完成，已设置为仅写入模式")
+        logging.info("✅ 配置文件修改完成，已设置为仅写入模式，LOOP=1500")
         return True
         
     except Exception as e:
@@ -88,12 +92,13 @@ def modify_benchmark_config_for_disorder():
 def restore_benchmark_config():
     """
     恢复benchmark配置文件到原始状态
+    包括恢复LOOP=15000和OPERATION_PROPORTION的原始值
     """
     try:
         backup_path = BENCHMARK_CONFIG_PATH + ".backup"
         if os.path.exists(backup_path):
             shutil.copy2(backup_path, BENCHMARK_CONFIG_PATH)
-            logging.info("✅ 配置文件已恢复到原始状态")
+            logging.info("✅ 配置文件已恢复到原始状态（包括LOOP=15000）")
             return True
         else:
             logging.warning("⚠️  未找到备份文件，无法恢复配置")
@@ -119,6 +124,12 @@ def out_of_order_scenario(bat_path: str = "test.bat",
     logging.info(f"\n{'='*80}")
     logging.info(f"开始单次消息乱序场景实验")
     logging.info(f"{'='*80}")
+    
+    # 修改DB_SWITCH配置
+    logging.info("\n【配置数据库】修改benchmark配置中的DB_SWITCH...")
+    if not modify_db_switch():
+        logging.error("❌ 修改DB_SWITCH失败，实验终止")
+        return None
     
     # 调用消息乱序场景函数
     exp_result = out_of_order_scenario_single_run(

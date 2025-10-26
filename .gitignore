@@ -2,3 +2,4 @@
 result/*
 test.py
 config.py
+symmetric_network_partition_quick_test.py

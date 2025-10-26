@@ -2,8 +2,8 @@ import threading
 import time
 import logging
 import os
-from config import node_num, abnormal_scenario, INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH
-from tools import startConfigNode, startDataNode
+from config import node_num, abnormal_scenario, INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH, DB_TYPE
+from tools import startConfigNode, startDataNode, modify_db_switch
 from node_outage import node_outage_scenario
 from symmetric_network_partition import symmetric_network_partition_scenario
 from asymmetric_network_partition import asymmetric_network_partition_scenario
@@ -26,8 +26,14 @@ logging.basicConfig(
 if __name__ == "__main__":
     stop_event = threading.Event()  # 保留原stop_event，供监控函数（如monitor_and_restart）使用
     logging.info(f"{'='*60}")
-    logging.info(f"启动程序 | 异常场景：{abnormal_scenario} | 节点数量：{node_num}")
+    logging.info(f"启动程序 | 数据库类型：{DB_TYPE} | 异常场景：{abnormal_scenario} | 节点数量：{node_num}")
     logging.info(f"{'='*60}")
+    
+    # 在运行测试前，根据DB_TYPE修改benchmark配置文件中的DB_SWITCH参数
+    logging.info(f"\n【配置数据库】根据DB_TYPE={DB_TYPE}修改benchmark配置...")
+    if not modify_db_switch():
+        logging.error("❌ 修改DB_SWITCH失败，程序终止")
+        exit(1)
 
     if abnormal_scenario == "node_outage":
         # 执行单次节点宕机场景，自动触发两次测试并输出结果

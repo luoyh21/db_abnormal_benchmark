@@ -6,7 +6,7 @@ from config import node_num, server_ip, abnormal_scenario, OUTPUT_STORE_PATH, TR
 from typing import List
 import os
 import paramiko
-from tools import startConfigNode, startDataNode, stopNode, run_bat_and_parse, start_monitoring_system
+from tools import startConfigNode, startDataNode, stopNode, run_bat_and_parse, start_monitoring_system, modify_db_switch
 
 # 配置日志
 os.makedirs(OUTPUT_STORE_PATH, exist_ok=True)
@@ -220,6 +220,12 @@ def abnormal_transmission_scenario(bat_path: str = "test.bat",
     logging.info(f"开始单次传输时间异常场景实验")
     logging.info(f"传输延迟配置: {TRANSMISSION_DELAY_MS}ms ±{DELAY_VARIANCE_MS}ms")
     logging.info(f"{'='*80}")
+    
+    # 修改DB_SWITCH配置
+    logging.info("\n【配置数据库】修改benchmark配置中的DB_SWITCH...")
+    if not modify_db_switch():
+        logging.error("❌ 修改DB_SWITCH失败，实验终止")
+        return None
     
     # 调用传输时间异常场景函数
     exp_result = abnormal_transmission_single_run(

@@ -4,7 +4,7 @@ import paramiko
 import threading
 import time
 import logging
-from config import server_ip, OUTPUT_STORE_PATH
+from config import server_ip, OUTPUT_STORE_PATH, DB_TYPE
 from typing import List, Dict, Any
 
 # 配置日志
@@ -19,90 +19,248 @@ logging.basicConfig(
 )
 
 def startConfigNode(index):
-    """启动指定索引的ConfigNode"""
-    try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(server_ip[index], username="ubuntu", password="Dwf12345")
-        
-        stdin, stdout, stderr = ssh.exec_command(
-            "sudo ./apache-iotdb-2.0.4-all-bin/sbin/start-confignode.sh -d", get_pty=True)
-        logging.info(f"启动 ConfigNode {index}")
-        
-        # 读取输出
-        while not stdout.channel.exit_status_ready():
-            result = stdout.readline()
-            if result:
-                logging.info(f"{server_ip[index]} {result.strip()}")
-            if stdout.channel.exit_status_ready():
-                remaining = stdout.readlines()
-                for line in remaining:
-                    logging.info(f"{server_ip[index]} {line.strip()}")
-                break
-                
-        time.sleep(5)  # 给予ConfigNode启动时间
-        
-    except Exception as e:
-        logging.error(f"启动ConfigNode {index} 时出错: {e}")
-    finally:
-        if 'ssh' in locals():
-            ssh.close()
+    """启动指定索引的ConfigNode（仅IoTDB使用）"""
+    if DB_TYPE == "IoTDB":
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(server_ip[index], username="ubuntu", password="Dwf12345")
+            
+            # 根据index确定路径前缀
+            path_prefix = "/mnt/data/" if index == 0 else "./"
+            
+            stdin, stdout, stderr = ssh.exec_command(
+                f"sudo {path_prefix}apache-iotdb-2.0.4-all-bin/sbin/start-confignode.sh -d", get_pty=True)
+            logging.info(f"启动 IoTDB ConfigNode {index}")
+            
+            # 读取输出
+            while not stdout.channel.exit_status_ready():
+                result = stdout.readline()
+                if result:
+                    logging.info(f"{server_ip[index]} {result.strip()}")
+                if stdout.channel.exit_status_ready():
+                    remaining = stdout.readlines()
+                    for line in remaining:
+                        logging.info(f"{server_ip[index]} {line.strip()}")
+                    break
+                    
+            time.sleep(5)  # 给予ConfigNode启动时间
+            
+        except Exception as e:
+            logging.error(f"启动IoTDB ConfigNode {index} 时出错: {e}")
+        finally:
+            if 'ssh' in locals():
+                ssh.close()
+    elif DB_TYPE == "TDengine":
+        # TDengine每个节点都需要启动
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(server_ip[index], username="ubuntu", password="Dwf12345")
+            
+            # 根据index确定路径前缀
+            path_prefix = "/mnt/data/" if index == 0 else "./"
+            
+            # 启动taosd
+            stdin, stdout, stderr = ssh.exec_command(
+                f"sudo systemctl start taosd", get_pty=True)
+            logging.info(f"启动 TDengine 节点 {index} (taosd)")
+            
+            # 读取输出
+            while not stdout.channel.exit_status_ready():
+                result = stdout.readline()
+                if result:
+                    logging.info(f"{server_ip[index]} {result.strip()}")
+                if stdout.channel.exit_status_ready():
+                    remaining = stdout.readlines()
+                    for line in remaining:
+                        logging.info(f"{server_ip[index]} {line.strip()}")
+                    break
+            
+            # 启动taoskeeper
+            stdin, stdout, stderr = ssh.exec_command(
+                f"sudo systemctl start taoskeeper", get_pty=True)
+            logging.info(f"启动 TDengine 节点 {index} (taoskeeper)")
+            
+            # 读取输出
+            while not stdout.channel.exit_status_ready():
+                result = stdout.readline()
+                if result:
+                    logging.info(f"{server_ip[index]} {result.strip()}")
+                if stdout.channel.exit_status_ready():
+                    remaining = stdout.readlines()
+                    for line in remaining:
+                        logging.info(f"{server_ip[index]} {line.strip()}")
+                    break
+                    
+            time.sleep(5)  # 给予TDengine启动时间
+            
+        except Exception as e:
+            logging.error(f"启动TDengine节点 {index} 时出错: {e}")
+        finally:
+            if 'ssh' in locals():
+                ssh.close()
+    else:
+        logging.error(f"未知的数据库类型: {DB_TYPE}")
 
 def startDataNode(index):
-    """启动指定索引的DataNode"""
-    try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(server_ip[index], username="ubuntu", password="Dwf12345")
-        
-        stdin, stdout, stderr = ssh.exec_command(
-            "sudo ./apache-iotdb-2.0.4-all-bin/sbin/start-datanode.sh -d", get_pty=True)
-        logging.info(f"启动 DataNode {index}")
-        
-        # 读取输出
-        while not stdout.channel.exit_status_ready():
-            result = stdout.readline()
-            if result:
-                logging.info(f"{server_ip[index]} {result.strip()}")
-            if stdout.channel.exit_status_ready():
-                remaining = stdout.readlines()
-                for line in remaining:
-                    logging.info(f"{server_ip[index]} {line.strip()}")
-                break
-                
-    except Exception as e:
-        logging.error(f"启动DataNode {index} 时出错: {e}")
-    finally:
-        if 'ssh' in locals():
-            ssh.close()
+    """启动指定索引的DataNode/TDengine节点"""
+    if DB_TYPE == "IoTDB":
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(server_ip[index], username="ubuntu", password="Dwf12345")
+            
+            # 根据index确定路径前缀
+            path_prefix = "/mnt/data/" if index == 0 else "./"
+            
+            stdin, stdout, stderr = ssh.exec_command(
+                f"sudo {path_prefix}apache-iotdb-2.0.4-all-bin/sbin/start-datanode.sh -d", get_pty=True)
+            logging.info(f"启动 IoTDB DataNode {index}")
+            
+            # 读取输出
+            while not stdout.channel.exit_status_ready():
+                result = stdout.readline()
+                if result:
+                    logging.info(f"{server_ip[index]} {result.strip()}")
+                if stdout.channel.exit_status_ready():
+                    remaining = stdout.readlines()
+                    for line in remaining:
+                        logging.info(f"{server_ip[index]} {line.strip()}")
+                    break
+                    
+        except Exception as e:
+            logging.error(f"启动IoTDB DataNode {index} 时出错: {e}")
+        finally:
+            if 'ssh' in locals():
+                ssh.close()
+    elif DB_TYPE == "TDengine":
+        # TDengine在ConfigNode阶段已经启动，这里不需要再执行操作
+        logging.info(f"TDengine已在ConfigNode阶段启动，跳过DataNode {index}")
+    else:
+        logging.error(f"未知的数据库类型: {DB_TYPE}")
 
 def stopNode(index, only_datanode=False):
-    try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(server_ip[index], username="ubuntu", password="Dwf12345")
-        if not only_datanode:
+    """停止指定索引的节点"""
+    if DB_TYPE == "IoTDB":
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(server_ip[index], username="ubuntu", password="Dwf12345")
+            
+            # 根据index确定路径前缀
+            path_prefix = "/mnt/data/" if index == 0 else "./"
+            
+            if not only_datanode:
+                stdin, stdout, stderr = ssh.exec_command(
+                    f"sudo {path_prefix}apache-iotdb-2.0.4-all-bin/sbin/stop-confignode.sh", get_pty=True)
+                while not stdout.channel.exit_status_ready():
+                    result = stdout.readline()
+                    logging.info(f"{server_ip[index]} {result.strip()}")
+                    if stdout.channel.exit_status_ready():
+                        a = stdout.readlines()
+                        break
+                time.sleep(5)
             stdin, stdout, stderr = ssh.exec_command(
-                "sudo ./apache-iotdb-2.0.4-all-bin/sbin/stop-confignode.sh", get_pty=True)
+                f"sudo {path_prefix}apache-iotdb-2.0.4-all-bin/sbin/stop-datanode.sh", get_pty=True)
             while not stdout.channel.exit_status_ready():
                 result = stdout.readline()
                 logging.info(f"{server_ip[index]} {result.strip()}")
                 if stdout.channel.exit_status_ready():
                     a = stdout.readlines()
                     break
-            time.sleep(5)
-        stdin, stdout, stderr = ssh.exec_command(
-            "sudo ./apache-iotdb-2.0.4-all-bin/sbin/stop-datanode.sh", get_pty=True)
-        while not stdout.channel.exit_status_ready():
-            result = stdout.readline()
-            logging.info(f"{server_ip[index]} {result.strip()}")
-            if stdout.channel.exit_status_ready():
-                a = stdout.readlines()
-                break
+        except Exception as e:
+            logging.error(f"停止IoTDB节点 {index} 时出错: {str(e)}")
+        finally:
+            ssh.close()
+    elif DB_TYPE == "TDengine":
+        # TDengine每个节点都需要停止
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(server_ip[index], username="ubuntu", password="Dwf12345")
+            
+            # 根据index确定路径前缀
+            path_prefix = "/mnt/data/" if index == 0 else "./"
+            
+            # 停止taoskeeper
+            stdin, stdout, stderr = ssh.exec_command(
+                f"sudo systemctl stop taoskeeper", get_pty=True)
+            logging.info(f"停止 TDengine 节点 {index} (taoskeeper)")
+            
+            while not stdout.channel.exit_status_ready():
+                result = stdout.readline()
+                logging.info(f"{server_ip[index]} {result.strip()}")
+                if stdout.channel.exit_status_ready():
+                    a = stdout.readlines()
+                    break
+            
+            # 停止taosd
+            stdin, stdout, stderr = ssh.exec_command(
+                f"sudo systemctl stop taosd", get_pty=True)
+            logging.info(f"停止 TDengine 节点 {index} (taosd)")
+            
+            while not stdout.channel.exit_status_ready():
+                result = stdout.readline()
+                logging.info(f"{server_ip[index]} {result.strip()}")
+                if stdout.channel.exit_status_ready():
+                    a = stdout.readlines()
+                    break
+        except Exception as e:
+            logging.error(f"停止TDengine节点 {index} 时出错: {str(e)}")
+        finally:
+            ssh.close()
+    else:
+        logging.error(f"未知的数据库类型: {DB_TYPE}")
+
+
+def modify_db_switch():
+    """
+    根据DB_TYPE修改benchmark配置文件中的DB_SWITCH参数
+    IoTDB: DB_SWITCH=IoTDB-200-SESSION_BY_TABLET
+    TDengine: DB_SWITCH=TDengine-3
+    """
+    try:
+        from config import BENCHMARK_CONFIG_PATH
+        
+        # 读取配置文件
+        with open(BENCHMARK_CONFIG_PATH, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        
+        # 根据数据库类型设置DB_SWITCH
+        if DB_TYPE == "IoTDB":
+            target_value = "IoTDB-200-SESSION_BY_TABLET"
+        elif DB_TYPE == "TDengine":
+            target_value = "TDengine-3"
+        else:
+            logging.error(f"未知的数据库类型: {DB_TYPE}")
+            return False
+        
+        # 修改配置参数
+        modified_lines = []
+        modified = False
+        for line in lines:
+            if line.strip().startswith('DB_SWITCH='):
+                modified_lines.append(f"DB_SWITCH={target_value}\n")
+                modified = True
+                logging.info(f"修改DB_SWITCH: 设置为 {target_value}")
+            else:
+                modified_lines.append(line)
+        
+        if not modified:
+            logging.warning("⚠️  未找到DB_SWITCH参数")
+            return False
+        
+        # 写入修改后的配置
+        with open(BENCHMARK_CONFIG_PATH, 'w', encoding='utf-8') as f:
+            f.writelines(modified_lines)
+        
+        logging.info(f"✅ 配置文件修改完成，DB_SWITCH已设置为 {target_value}")
+        return True
+        
     except Exception as e:
-        logging.error(str(e))
-    finally:
-        ssh.close()
+        logging.error(f"❌ 修改DB_SWITCH时出错: {e}")
+        return False
 
 
 def start_monitoring_system():
@@ -121,7 +279,7 @@ def start_monitoring_system():
                 
                 logging.info("启动Prometheus服务...")
                 stdin, stdout, stderr = ssh_prometheus.exec_command(
-                    "./prometheus-3.5.0.linux-amd64/prometheus --config.file=prometheus-3.5.0.linux-amd64/prometheus.yml --storage.tsdb.retention.time=180d",
+                    "/mnt/data/prometheus-3.5.0.linux-amd64/prometheus --config.file=/mnt/data/prometheus-3.5.0.linux-amd64/prometheus.yml --storage.tsdb.retention.time=180d",
                     get_pty=True
                 )
                 
@@ -153,28 +311,22 @@ def start_monitoring_system():
                 
                 logging.info("启动Grafana服务...")
                 stdin, stdout, stderr = ssh_grafana.exec_command(
-                    "cd grafana-12.1.1/ && ./bin/grafana-server web",
+                    "sudo /bin/systemctl start grafana-server",
                     get_pty=True
                 )
                 
-                # 读取初始启动输出
-                logging.info("Grafana启动输出:")
-                time.sleep(3)  # 等待服务启动
+                # 等待命令执行完成
+                stdout.channel.recv_exit_status()
                 
-                # 检查输出是否有错误
-                if stdout.channel.recv_ready():
-                    initial_output = stdout.read(1024).decode('utf-8')
-                    logging.info(f"Grafana: {initial_output}")
+                logging.info("✅ Grafana服务已启动")
                 
-                logging.info("✅ Grafana服务已启动并保持运行")
-                
-                # 保持SSH连接不关闭，让Grafana持续运行
-                # 注意：这个SSH连接将持续保持开启状态
-                return ssh_grafana
+                # 关闭SSH连接
+                ssh_grafana.close()
                 
             except Exception as e:
                 logging.error(f"❌ 启动Grafana时出错: {e}")
-                return None
+                if 'ssh_grafana' in locals():
+                    ssh_grafana.close()
         
         # 启动Prometheus线程
         prometheus_thread = threading.Thread(target=lambda: globals().update({'prometheus_ssh': start_prometheus()}))
@@ -184,13 +336,8 @@ def start_monitoring_system():
         # 等待Prometheus启动
         time.sleep(5)
         
-        # 启动Grafana线程
-        grafana_thread = threading.Thread(target=lambda: globals().update({'grafana_ssh': start_grafana()}))
-        grafana_thread.daemon = True  # 设为守护线程
-        grafana_thread.start()
-        
-        # 等待Grafana启动
-        time.sleep(5)
+        # 直接启动Grafana（不使用线程）
+        start_grafana()
         
         logging.info("【监控系统】Prometheus和Grafana已启动完成")
         logging.info(f"Prometheus Web界面: http://{server_ip[0]}:9090")

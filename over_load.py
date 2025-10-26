@@ -6,7 +6,7 @@ import logging
 import os
 import shutil
 from config import node_num, server_ip, abnormal_scenario, OUTPUT_STORE_PATH, BENCHMARK_CONFIG_PATH
-from tools import startConfigNode, startDataNode, stopNode, run_bat_and_parse, start_monitoring_system
+from tools import startConfigNode, startDataNode, stopNode, run_bat_and_parse, start_monitoring_system, modify_db_switch
 
 # 配置日志
 os.makedirs(OUTPUT_STORE_PATH, exist_ok=True)
@@ -101,6 +101,12 @@ def over_load_scenario(bat_path: str = "test.bat",
     logging.info(f"\n{'='*80}")
     logging.info(f"开始单次过载场景实验")
     logging.info(f"{'='*80}")
+    
+    # 修改DB_SWITCH配置
+    logging.info("\n【配置数据库】修改benchmark配置中的DB_SWITCH...")
+    if not modify_db_switch():
+        logging.error("❌ 修改DB_SWITCH失败，实验终止")
+        return None
     
     # 调用过载场景函数
     exp_result = over_load_scenario_single_run(

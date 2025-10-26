@@ -3,6 +3,9 @@ node_num = 3
 server_ip = ['111.1.1.1','111.1.1.2','111.1.1.3']
 abnormal_scenario = "symmetric_network_partition"
 
+# 数据库类型配置：IoTDB 或 TDengine
+DB_TYPE = "IoTDB"  # 可选值: "IoTDB", "TDengine"
+
 # 传输时间异常配置
 TRANSMISSION_DELAY_MS = 100  # 传输延迟时间（毫秒）
 DELAY_VARIANCE_MS = 10       # 延迟变化范围（毫秒）
