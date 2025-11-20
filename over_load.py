@@ -120,28 +120,28 @@ def over_load_scenario(bat_path: str = "test.bat",
 
 def over_load_scenario_single_run(bat_path, test_result_file_path, output_store_path):
     """
-    单次过载场景主函数：清理→启动→等待20分钟→第一次测试(正常配置)→修改配置→第二次测试(过载配置)→恢复配置→停止系统
+    单次过载场景主函数：清理→启动→等待20分钟→异常测试(过载配置)→恢复配置→停止系统
     参数：
         bat_path: str - 测试用bat文件的完整路径
         test_result_file_path: str - 单次测试结果文件的完整路径
         output_store_path: str - 最终测试结果集合的存储路径
     返回：
-        dict - 两次测试的结果集合（含状态信息）
+        dict - 异常测试的结果集合（含状态信息）
     """
-    # 初始化两次测试的结果集合
+    # 初始化测试结果集合
     all_test_results = {
         "scenario_name": "over_load_scenario_single_run",  # 场景名称
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),  # 场景开始时间
         "node_count": node_num,  # 节点数量
         "server_ips": server_ip,  # 服务器IP列表
-        "test_results": [],  # 存储两次测试的具体结果
+        "test_results": [],  # 存储测试的具体结果
         "end_time": "",  # 场景结束时间（最后赋值）
         "status": "running"  # 场景整体状态：running/finished/failed
     }
 
     try:
         # -------------------------- 1. 清理所有节点 --------------------------
-        logging.info("【步骤1/7】清理所有节点...")
+        logging.info("【步骤1/5】清理所有节点...")
         clean_threads = []
         for idx in range(node_num):
             t = threading.Thread(target=stopNode, args=(idx,))
@@ -149,50 +149,36 @@ def over_load_scenario_single_run(bat_path, test_result_file_path, output_store_
             clean_threads.append(t)
 
         time.sleep(10)
-        logging.info("【步骤1/7】所有节点清理完成")
+        logging.info("【步骤1/5】所有节点清理完成")
 
         # -------------------------- 2. 启动所有ConfigNode --------------------------
-        logging.info("\n【步骤2/7】启动所有ConfigNode...")
+        logging.info("\n【步骤2/5】启动所有ConfigNode...")
         config_threads = []
         for idx in range(node_num):
             t = threading.Thread(target=startConfigNode, args=(idx,))
             t.start()
             config_threads.append(t)
         time.sleep(60)
-        logging.info("【步骤2/7】所有ConfigNode启动完成")
+        logging.info("【步骤2/5】所有ConfigNode启动完成")
 
         # -------------------------- 3. 启动所有DataNode --------------------------
-        logging.info("\n【步骤3/7】启动所有DataNode...")
+        logging.info("\n【步骤3/5】启动所有DataNode...")
         data_threads = []
         for idx in range(node_num):
             t = threading.Thread(target=startDataNode, args=(idx,))
             t.start()
             data_threads.append(t)
         time.sleep(60)
-        logging.info("【步骤3/7】所有DataNode启动完成")
+        logging.info("【步骤3/5】所有DataNode启动完成")
 
         # -------------------------- 4. 启动节点监控系统 --------------------------
-        logging.info("\n【步骤4/7】启动节点监控系统（Prometheus + Grafana）...")
+        logging.info("\n【步骤4/5】启动节点监控系统（Prometheus + Grafana）...")
         start_monitoring_system()
-        logging.info("【步骤4/7】节点监控系统启动完成")
+        logging.info("【步骤4/5】节点监控系统启动完成")
 
-        # -------------------------- 5. 第一次测试：正常配置测试 --------------------------
-        logging.info("\n【步骤5/7】等待20分钟，准备第一次测试（正常配置测试）...")
+        # -------------------------- 5. 异常测试：等待20分钟后开始，期间进行配置修改 --------------------------
+        logging.info("\n【步骤5/5】等待20分钟后开始异常测试（期间进行配置修改操作）...")
         time.sleep(20 * 60)  # 等待20分钟
-        
-        first_test = run_bat_and_parse(
-            bat_path=bat_path,
-            result_file_path=test_result_file_path
-        )
-        # 为第一次测试添加状态标识（正常状态）
-        first_test["test_phase"] = "normal"
-        first_test["phase_description"] = "正常配置测试（基准性能）"
-        all_test_results["test_results"].append(first_test)
-        logging.info("【步骤5/7】第一次测试完成")
-
-        # -------------------------- 6. 修改配置并执行过载测试 --------------------------
-        logging.info("\n【步骤6/7】等待30分钟后开始第二次测试（期间进行配置修改操作）...")
-        time.sleep(30 * 60)  # 等待30分钟
         
         # 创建异步执行配置修改操作的线程
         def config_modification_operation():
@@ -216,22 +202,22 @@ def over_load_scenario_single_run(bat_path, test_result_file_path, output_store_
         operation_thread = threading.Thread(target=config_modification_operation)
         operation_thread.start()
         
-        # 同时开始第二次测试
-        logging.info("开始第二次测试...")
-        second_test = run_bat_and_parse(
+        # 同时开始异常测试
+        logging.info("开始异常测试...")
+        abnormal_test = run_bat_and_parse(
             bat_path=bat_path,
             result_file_path=test_result_file_path
         )
-        # 为第二次测试添加状态标识（过载状态）
-        second_test["test_phase"] = "overload"
-        second_test["phase_description"] = "过载配置测试（高负载压力）"
-        all_test_results["test_results"].append(second_test)
+        # 为异常测试添加状态标识（过载状态）
+        abnormal_test["test_phase"] = "overload"
+        abnormal_test["phase_description"] = "过载配置测试（高负载压力）"
+        all_test_results["test_results"].append(abnormal_test)
         
         # 等待配置修改操作完成
         operation_thread.join()
-        logging.info("【步骤6/7】第二次测试和配置修改操作均完成")
+        logging.info("【步骤5/5】异常测试和配置修改操作均完成")
 
-        # -------------------------- 7. 更新状态并存储结果 --------------------------
+        # -------------------------- 6. 更新状态并存储结果 --------------------------
         all_test_results["end_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         all_test_results["status"] = "finished"  # 场景正常完成
         logging.info(f"\n{'='*60}")

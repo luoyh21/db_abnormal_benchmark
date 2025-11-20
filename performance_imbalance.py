@@ -268,7 +268,7 @@ def performance_imbalance_scenario(bat_path: str = "test.bat",
 
 def performance_imbalance_scenario_single_run(bat_path, test_result_file_path, output_store_path):
     """
-    单次性能不平衡场景主函数：清理→启动→等待20分钟→第一次测试→第二次测试(期间对随机一半节点进行传输延迟)→结果存储→停止系统
+    单次性能不平衡场景主函数：清理→启动→等待20分钟→异常测试(期间对随机一半节点进行传输延迟)→结果存储→停止系统
     
     参数：
         bat_path: str - 测试用bat文件的完整路径
@@ -276,12 +276,12 @@ def performance_imbalance_scenario_single_run(bat_path, test_result_file_path, o
         output_store_path: str - 最终测试结果集合的存储路径
     
     返回：
-        dict - 两次测试的结果集合（含状态信息）
+        dict - 异常测试的结果集合（含状态信息）
     """
     # 随机选择一半节点（向下取整）且非0号节点
     selected_nodes = get_random_half_nodes()
     
-    # 初始化两次测试的结果集合
+    # 初始化测试结果集合
     all_test_results = {
         "scenario_name": "performance_imbalance_scenario_single_run",
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
@@ -297,7 +297,7 @@ def performance_imbalance_scenario_single_run(bat_path, test_result_file_path, o
 
     try:
         # -------------------------- 1. 清理所有节点 --------------------------
-        logging.info("【步骤1/6】清理所有节点...")
+        logging.info("【步骤1/5】清理所有节点...")
         clean_threads = []
         for idx in range(node_num):
             t = threading.Thread(target=stopNode, args=(idx,))
@@ -305,53 +305,41 @@ def performance_imbalance_scenario_single_run(bat_path, test_result_file_path, o
             clean_threads.append(t)
 
         time.sleep(10)
-        logging.info("【步骤1/6】所有节点清理完成")
+        logging.info("【步骤1/5】所有节点清理完成")
 
         # 同时移除所有节点的传输延迟（预防性清理）
-        logging.info("【步骤1/6】预防性移除传输延迟...")
+        logging.info("【步骤1/5】预防性移除传输延迟...")
         for node_idx in selected_nodes:
             remove_transmission_delay(node_idx)
 
         # -------------------------- 2. 启动所有ConfigNode --------------------------
-        logging.info("\n【步骤2/6】启动所有ConfigNode...")
+        logging.info("\n【步骤2/5】启动所有ConfigNode...")
         config_threads = []
         for idx in range(node_num):
             t = threading.Thread(target=startConfigNode, args=(idx,))
             t.start()
             config_threads.append(t)
         time.sleep(60)
-        logging.info("【步骤2/6】所有ConfigNode启动完成")
+        logging.info("【步骤2/5】所有ConfigNode启动完成")
 
         # -------------------------- 3. 启动所有DataNode --------------------------
-        logging.info("\n【步骤3/6】启动所有DataNode...")
+        logging.info("\n【步骤3/5】启动所有DataNode...")
         data_threads = []
         for idx in range(node_num):
             t = threading.Thread(target=startDataNode, args=(idx,))
             t.start()
             data_threads.append(t)
         time.sleep(60)
-        logging.info("【步骤3/6】所有DataNode启动完成")
+        logging.info("【步骤3/5】所有DataNode启动完成")
 
         # -------------------------- 4. 启动节点监控系统 --------------------------
-        logging.info("\n【步骤4/6】启动节点监控系统（Prometheus + Grafana）...")
+        logging.info("\n【步骤4/5】启动节点监控系统（Prometheus + Grafana）...")
         start_monitoring_system()
-        logging.info("【步骤4/6】节点监控系统启动完成")
+        logging.info("【步骤4/5】节点监控系统启动完成")
 
-        # -------------------------- 5. 第一次测试：等待20分钟后进行 --------------------------
-        logging.info("\n【步骤5/6】等待20分钟，准备第一次测试（节点启动后稳定测试）...")
+        # -------------------------- 5. 异常测试：等待20分钟后开始，期间对随机一半节点进行传输延迟 --------------------------
+        logging.info("\n【步骤5/5】等待20分钟后开始异常测试（期间对随机一半节点进行传输延迟操作）...")
         time.sleep(20 * 60)  # 等待20分钟
-        first_test = run_bat_and_parse(
-            bat_path=bat_path,
-            result_file_path=test_result_file_path
-        )
-        first_test["test_phase"] = "normal"
-        first_test["phase_description"] = "节点启动后稳定测试（正常传输状态）"
-        all_test_results["test_results"].append(first_test)
-        logging.info("【步骤5/6】第一次测试完成")
-
-        # -------------------------- 6. 第二次测试：等待30分钟后开始，期间对随机一半节点进行传输延迟 --------------------------
-        logging.info("\n【步骤6/6】等待30分钟后开始第二次测试（期间对随机一半节点进行传输延迟操作）...")
-        time.sleep(30 * 60)  # 等待30分钟
         
         # 创建异步执行传输延迟操作的线程
         def transmission_delay_operation():
@@ -372,24 +360,24 @@ def performance_imbalance_scenario_single_run(bat_path, test_result_file_path, o
         operation_thread = threading.Thread(target=transmission_delay_operation)
         operation_thread.start()
         
-        # 同时开始第二次测试
-        logging.info("开始第二次测试...")
-        second_test = run_bat_and_parse(
+        # 同时开始异常测试
+        logging.info("开始异常测试...")
+        abnormal_test = run_bat_and_parse(
             bat_path=bat_path,
             result_file_path=test_result_file_path
         )
-        second_test["test_phase"] = "imbalance"
-        second_test["phase_description"] = f"性能不平衡测试（异常状态 - 延迟: {TRANSMISSION_DELAY_MS}ms ±{DELAY_VARIANCE_MS}ms，影响节点: {selected_nodes}）"
-        second_test["transmission_delay_ms"] = TRANSMISSION_DELAY_MS
-        second_test["delay_variance_ms"] = DELAY_VARIANCE_MS
-        second_test["affected_nodes"] = selected_nodes
-        all_test_results["test_results"].append(second_test)
+        abnormal_test["test_phase"] = "imbalance"
+        abnormal_test["phase_description"] = f"性能不平衡测试（异常状态 - 延迟: {TRANSMISSION_DELAY_MS}ms ±{DELAY_VARIANCE_MS}ms，影响节点: {selected_nodes}）"
+        abnormal_test["transmission_delay_ms"] = TRANSMISSION_DELAY_MS
+        abnormal_test["delay_variance_ms"] = DELAY_VARIANCE_MS
+        abnormal_test["affected_nodes"] = selected_nodes
+        all_test_results["test_results"].append(abnormal_test)
         
         # 等待传输延迟操作完成
         operation_thread.join()
-        logging.info("【步骤6/6】第二次测试和传输延迟操作均完成")
+        logging.info("【步骤5/5】异常测试和传输延迟操作均完成")
 
-        # -------------------------- 7. 更新场景状态，存储结果 --------------------------
+        # -------------------------- 6. 更新场景状态，存储结果 --------------------------
         all_test_results["end_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         all_test_results["status"] = "finished"
         logging.info(f"\n{'='*60}")

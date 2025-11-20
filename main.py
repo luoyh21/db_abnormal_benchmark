@@ -36,7 +36,7 @@ if __name__ == "__main__":
         exit(1)
 
     if abnormal_scenario == "node_outage":
-        # 执行单次节点宕机场景，自动触发两次测试并输出结果
+        # 执行单次节点宕机场景，自动触发异常测试并输出结果
         logging.info("开始执行单次节点宕机测试流程...")
         node_outage_scenario(INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH)
     elif abnormal_scenario == "symmetric_network_partition":

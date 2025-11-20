@@ -52,6 +52,43 @@ def startConfigNode(index):
             if 'ssh' in locals():
                 ssh.close()
     elif DB_TYPE == "TDengine":
+        # TDengine 不使用 ConfigNode，启动逻辑在 startDataNode 中
+        logging.info(f"TDengine 不使用 ConfigNode，跳过启动 ConfigNode {index}")
+    else:
+        logging.error(f"未知的数据库类型: {DB_TYPE}")
+
+def startDataNode(index):
+    """启动指定索引的DataNode/TDengine节点"""
+    if DB_TYPE == "IoTDB":
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.connect(server_ip[index], username="ubuntu", password="Dwf12345")
+            
+            # 根据index确定路径前缀
+            path_prefix = "/mnt/data/" if index == 0 else "./"
+            
+            stdin, stdout, stderr = ssh.exec_command(
+                f"sudo {path_prefix}apache-iotdb-2.0.4-all-bin/sbin/start-datanode.sh -d", get_pty=True)
+            logging.info(f"启动 IoTDB DataNode {index}")
+            
+            # 读取输出
+            while not stdout.channel.exit_status_ready():
+                result = stdout.readline()
+                if result:
+                    logging.info(f"{server_ip[index]} {result.strip()}")
+                if stdout.channel.exit_status_ready():
+                    remaining = stdout.readlines()
+                    for line in remaining:
+                        logging.info(f"{server_ip[index]} {line.strip()}")
+                    break
+                    
+        except Exception as e:
+            logging.error(f"启动IoTDB DataNode {index} 时出错: {e}")
+        finally:
+            if 'ssh' in locals():
+                ssh.close()
+    elif DB_TYPE == "TDengine":
         # TDengine每个节点都需要启动
         try:
             ssh = paramiko.SSHClient()
@@ -92,31 +129,11 @@ def startConfigNode(index):
                     for line in remaining:
                         logging.info(f"{server_ip[index]} {line.strip()}")
                     break
-                    
-            time.sleep(5)  # 给予TDengine启动时间
             
-        except Exception as e:
-            logging.error(f"启动TDengine节点 {index} 时出错: {e}")
-        finally:
-            if 'ssh' in locals():
-                ssh.close()
-    else:
-        logging.error(f"未知的数据库类型: {DB_TYPE}")
-
-def startDataNode(index):
-    """启动指定索引的DataNode/TDengine节点"""
-    if DB_TYPE == "IoTDB":
-        try:
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(server_ip[index], username="ubuntu", password="Dwf12345")
-            
-            # 根据index确定路径前缀
-            path_prefix = "/mnt/data/" if index == 0 else "./"
-            
+            # 启动taosadapter
             stdin, stdout, stderr = ssh.exec_command(
-                f"sudo {path_prefix}apache-iotdb-2.0.4-all-bin/sbin/start-datanode.sh -d", get_pty=True)
-            logging.info(f"启动 IoTDB DataNode {index}")
+                f"sudo systemctl start taosadapter", get_pty=True)
+            logging.info(f"启动 TDengine 节点 {index} (taosadapter)")
             
             # 读取输出
             while not stdout.channel.exit_status_ready():
@@ -129,14 +146,13 @@ def startDataNode(index):
                         logging.info(f"{server_ip[index]} {line.strip()}")
                     break
                     
+            time.sleep(5)  # 给予TDengine启动时间
+            
         except Exception as e:
-            logging.error(f"启动IoTDB DataNode {index} 时出错: {e}")
+            logging.error(f"启动TDengine节点 {index} 时出错: {e}")
         finally:
             if 'ssh' in locals():
                 ssh.close()
-    elif DB_TYPE == "TDengine":
-        # TDengine在ConfigNode阶段已经启动，这里不需要再执行操作
-        logging.info(f"TDengine已在ConfigNode阶段启动，跳过DataNode {index}")
     else:
         logging.error(f"未知的数据库类型: {DB_TYPE}")
 
@@ -183,6 +199,18 @@ def stopNode(index, only_datanode=False):
             # 根据index确定路径前缀
             path_prefix = "/mnt/data/" if index == 0 else "./"
             
+            # 停止taosadapter（先停止）
+            stdin, stdout, stderr = ssh.exec_command(
+                f"sudo systemctl stop taosadapter", get_pty=True)
+            logging.info(f"停止 TDengine 节点 {index} (taosadapter)")
+            
+            while not stdout.channel.exit_status_ready():
+                result = stdout.readline()
+                logging.info(f"{server_ip[index]} {result.strip()}")
+                if stdout.channel.exit_status_ready():
+                    a = stdout.readlines()
+                    break
+            
             # 停止taoskeeper
             stdin, stdout, stderr = ssh.exec_command(
                 f"sudo systemctl stop taoskeeper", get_pty=True)
@@ -195,7 +223,7 @@ def stopNode(index, only_datanode=False):
                     a = stdout.readlines()
                     break
             
-            # 停止taosd
+            # 停止taosd（最后停止）
             stdin, stdout, stderr = ssh.exec_command(
                 f"sudo systemctl stop taosd", get_pty=True)
             logging.info(f"停止 TDengine 节点 {index} (taosd)")
