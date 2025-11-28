@@ -325,7 +325,3 @@ DELAY_VARIANCE_MS = 50       # 50ms变化范围
 ## 贡献
 
 欢迎提交 Issue 和 Pull Request 来改进本工具。
-
-## 许可证
-
-请参考项目根目录的 LICENSE 文件。

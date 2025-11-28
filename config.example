@@ -10,6 +10,9 @@ DB_TYPE = "IoTDB"  # 可选值: "IoTDB", "TDengine"
 TRANSMISSION_DELAY_MS = 100  # 传输延迟时间（毫秒）
 DELAY_VARIANCE_MS = 10       # 延迟变化范围（毫秒）
 
+# 客户端过载配置
+CLIENT_MULTIPLIER = 4  # 客户端数量倍数，将DATA_CLIENT_NUMBER和SCHEMA_CLIENT_NUMBER都乘以该倍数
+
 #path
 INPUT_BAT_PATH = "C:\\Users\\iot-benchmark\\tdengine-3.0\\target\\iot-benchmark-tdengine-3.0\\iot-benchmark-tdengine-3.0\\benchmark.bat"
 INPUT_TEST_RESULT_PATH = "C:\\Users\\iot-benchmark\\tdengine-3.0\\target\\iot-benchmark-tdengine-3.0\\iot-benchmark-tdengine-3.0\\logs\\log_info.log"

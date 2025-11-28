@@ -9,6 +9,7 @@ from symmetric_network_partition import symmetric_network_partition_scenario
 from asymmetric_network_partition import asymmetric_network_partition_scenario
 from abnormal_transmission import abnormal_transmission_scenario
 from over_load import over_load_scenario
+from over_load_client import over_load_client_scenario
 from out_of_order import out_of_order_scenario
 from performance_imbalance import performance_imbalance_scenario
 
@@ -51,6 +52,9 @@ if __name__ == "__main__":
     elif abnormal_scenario == "over_load":
         logging.info("开始执行过载测试流程...")
         over_load_scenario(INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH)
+    elif abnormal_scenario == "over_load_client":
+        logging.info("开始执行客户端过载测试流程...")
+        over_load_client_scenario(INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH)
     elif abnormal_scenario == "out_of_order":
         logging.info("开始执行消息乱序测试流程...")
         out_of_order_scenario(INPUT_BAT_PATH, INPUT_TEST_RESULT_PATH, OUTPUT_STORE_PATH)
